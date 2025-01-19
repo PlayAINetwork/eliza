@@ -218,7 +218,7 @@ export class ClientBase extends EventEmitter {
             await new Promise((resolve) => setTimeout(resolve, 2000));
         }
         // Initialize Twitter profile
-        this.profile = await this.fetchProfile(username);
+        this.profile = await this.fetchProfile(process.env.AGENT_TWITTER);
 
         if (this.profile) {
             elizaLogger.log("Twitter user ID:", this.profile.id);
