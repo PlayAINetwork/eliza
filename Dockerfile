@@ -51,5 +51,8 @@ COPY --from=builder /app/packages ./packages
 COPY --from=builder /app/scripts ./scripts
 COPY --from=builder /app/characters ./characters
 
+ARG AGENT_ID
+RUN curl -s -X GET https://agent-portal-dev.up.railway.app/agent/${AGENT_ID}/character-card -o characters/platform.character.json
+
 # Set the command to run the application
-CMD ["pnpm", "start", "--character=characters/trump.character.json"]
+CMD ["pnpm", "start", "--character=characters/platform.character.json"]
