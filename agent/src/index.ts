@@ -1053,13 +1053,13 @@ const startAgents = async () => {
 
     directClient.start(serverPort);
 
-    if (serverPort !== parseInt(settings.SERVER_PORT || "3000")) {
-        elizaLogger.log(`Server started on alternate port ${serverPort}`);
-    }
-
-    elizaLogger.log(
-        "Run `pnpm start:client` to start the client and visit the outputted URL (http://localhost:5173) to chat with your agents. When running multiple agents, use client with different port `SERVER_PORT=3001 pnpm start:client`"
-    );
+    // if (serverPort !== parseInt(settings.SERVER_PORT || "3000")) {
+    //     elizaLogger.log(`Server started on alternate port ${serverPort}`);
+    // }
+    //
+    // elizaLogger.log(
+    //     "Run `pnpm start:client` to start the client and visit the outputted URL (http://localhost:5173) to chat with your agents. When running multiple agents, use client with different port `SERVER_PORT=3001 pnpm start:client`"
+    // );
 };
 
 startAgents().catch((error) => {
