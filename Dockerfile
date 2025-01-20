@@ -52,6 +52,7 @@ COPY --from=builder /app/scripts ./scripts
 COPY --from=builder /app/characters ./characters
 
 ARG AGENT_ID
+RUN apt-get update && apt-get install -y curl
 RUN curl -s -X GET https://agent-portal-dev.up.railway.app/agent/${AGENT_ID}/character-card -o characters/platform.character.json
 
 # Set the command to run the application
