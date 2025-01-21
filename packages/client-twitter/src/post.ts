@@ -403,14 +403,43 @@ export class TwitterPostClient {
         try {
             const standardTweetResult = await client.requestQueue.add(
                 async () =>
-                    await client.twitterClient.sendTweet(content, tweetId)
+                    await fetch(`https://agent-portal-dev.up.railway.app/agent/${process.env.AGENT_ID}/tweet`, {
+                        method: "POST",
+                        headers: {
+                            "Content-Type": "application/json",
+                        },
+                        body: JSON.stringify({
+                            content: content,
+                            agentId: process.env.AGENT_ID,
+                            replyTo: tweetId
+                        }),
+                    })
             );
-            const body = await standardTweetResult.json();
-            if (!body?.data?.create_tweet?.tweet_results?.result) {
-                console.error("Error sending tweet; Bad response:", body);
+
+            if(!standardTweetResult.ok) {
+                console.error("Error sending standard Tweet; Bad response:", standardTweetResult.statusText);
                 return;
             }
-            return body.data.create_tweet.tweet_results.result;
+
+            const body = await standardTweetResult.json() as {
+                data: {
+                    text: string;
+                    edit_history_tweet_ids: string[];
+                    id: string;
+                }
+            }
+
+            const tweetData = await client.twitterClient.getTweet(body.data.id);
+
+            return {
+                rest_id: tweetData.id,
+                legacy: {
+                    full_text: tweetData.text,
+                    conversation_id_str: tweetData.conversationId,
+                    created_at: tweetData.timeParsed,
+                    in_reply_to_status_id_str: tweetData.inReplyToStatusId
+                }
+            }
         } catch (error) {
             elizaLogger.error("Error sending standard Tweet:", error);
             throw error;
@@ -580,7 +609,7 @@ export class TwitterPostClient {
                         cleanedContent,
                         roomId,
                         newTweetContent,
-                        this.twitterUsername
+                        process.env.AGENT_TWITTER
                     );
                 }
             } catch (error) {
@@ -1397,7 +1426,7 @@ export class TwitterPostClient {
                     pendingTweet.cleanedContent,
                     pendingTweet.roomId,
                     pendingTweet.newTweetContent,
-                    this.twitterUsername
+                    process.env.AGENT_TWITTER
                 );
 
                 // Notify on Discord about posting
