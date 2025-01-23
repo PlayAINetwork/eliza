@@ -98,10 +98,22 @@ export class TwitterSearchClient {
                     })
                     .join("\n");
 
+            // PlayAI Changes
             // randomly slice .tweets down to 20
+            // const slicedTweets = recentTweets.tweets
+            //     .sort(() => Math.random() - 0.5)
+            //     .slice(0, 20);
+
+            const blacklist = (
+                process.env.TWITTER_BLACKLIST?.split(",") || []
+            ).map((u) => u.toLowerCase());
+
             const slicedTweets = recentTweets.tweets
                 .sort(() => Math.random() - 0.5)
-                .slice(0, 20);
+                .slice(0, 20)
+                .filter(
+                    (tweet) => !blacklist.includes(tweet.username.toLowerCase())
+                );
 
             if (slicedTweets.length === 0) {
                 elizaLogger.log(

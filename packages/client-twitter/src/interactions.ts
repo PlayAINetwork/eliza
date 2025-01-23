@@ -218,6 +218,15 @@ export class TwitterInteractionClient {
                         ...mentionCandidates,
                         ...selectedTweets,
                     ];
+
+                    // PlayAI Changes
+                    const blacklist = (
+                        process.env.TWITTER_BLACKLIST?.split(",") || []
+                    ).map((u) => u.toLowerCase());
+                    uniqueTweetCandidates = uniqueTweetCandidates.filter(
+                        (tweet) =>
+                            !blacklist.includes(tweet.username.toLowerCase())
+                    );
                 }
             } else {
                 elizaLogger.log(
@@ -228,7 +237,7 @@ export class TwitterInteractionClient {
             // PlayAI Changes
             const TWITTER_TARGET_LISTS =
                 process.env.TWITTER_TARGET_LISTS?.split(",");
-            if (TWITTER_TARGET_LISTS.length) {
+            if (TWITTER_TARGET_LISTS?.length) {
                 elizaLogger.log(
                     "Processing target lists:",
                     TWITTER_TARGET_LISTS
@@ -417,6 +426,17 @@ export class TwitterInteractionClient {
         ) {
             elizaLogger.log(
                 "Skipping Tweet. Max agent replies in thread reached",
+                tweet.id
+            );
+            return;
+        }
+
+        const blacklist = (process.env.TWITTER_BLACKLIST?.split(",") || []).map(
+            (u) => u.toLowerCase()
+        );
+        if (thread.some((t) => blacklist.includes(t.username.toLowerCase()))) {
+            elizaLogger.log(
+                "Skipping Tweet. Blacklisted user in thread",
                 tweet.id
             );
             return;
