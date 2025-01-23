@@ -406,6 +406,22 @@ export class TwitterInteractionClient {
             return;
         }
 
+        // PlayAI Changes
+        const agentRepliesInThread = thread.filter(
+            (t) => t.userId === this.client.profile.id
+        );
+
+        if (
+            agentRepliesInThread.length >=
+            Number(process.env.MAX_AGENT_REPLIES_IN_THREAD)
+        ) {
+            elizaLogger.log(
+                "Skipping Tweet. Max agent replies in thread reached",
+                tweet.id
+            );
+            return;
+        }
+
         if (!message.content.text) {
             elizaLogger.log("Skipping Tweet with no text", tweet.id);
             return { text: "", action: "IGNORE" };
