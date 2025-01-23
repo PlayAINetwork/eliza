@@ -52,4 +52,13 @@ COPY --from=builder /app/scripts ./scripts
 COPY --from=builder /app/characters ./characters
 
 # Set the command to run the application
-CMD ["pnpm", "start"]
+# PlayAI Changes
+#CMD ["pnpm", "start"]
+
+ARG AGENT_ID
+ARG PLATFORM_API
+RUN apt-get update && apt-get install -y curl
+RUN curl -s -X GET ${PLATFORM_API}/agent/${AGENT_ID}/character-card -o ./characters/platform.character.json
+
+# Set the command to run the application
+CMD ["pnpm", "start", "--character=characters/platform.character.json"]
