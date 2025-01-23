@@ -413,7 +413,7 @@ export class TwitterInteractionClient {
 
         if (
             agentRepliesInThread.length >=
-            Number(process.env.MAX_AGENT_REPLIES_IN_THREAD)
+            Number(process.env.MAX_AGENT_REPLIES_IN_THREAD || 5)
         ) {
             elizaLogger.log(
                 "Skipping Tweet. Max agent replies in thread reached",
