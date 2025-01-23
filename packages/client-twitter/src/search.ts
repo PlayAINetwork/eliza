@@ -86,7 +86,6 @@ export class TwitterSearchClient {
                 SearchMode.Top
             );
             elizaLogger.log("Search tweets fetched");
-
             const homeTimeline = await this.client.fetchHomeTimeline(50);
 
             await this.client.cacheTimeline(homeTimeline);

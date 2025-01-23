@@ -401,16 +401,62 @@ export class TwitterPostClient {
         tweetId?: string
     ) {
         try {
+            // PlayAI Changes
+            // const standardTweetResult = await client.requestQueue.add(
+            //     async () =>
+            //         await client.twitterClient.sendTweet(content, tweetId)
+            // );
+            // const body = await standardTweetResult.json();
+            // if (!body?.data?.create_tweet?.tweet_results?.result) {
+            //     console.error("Error sending tweet; Bad response:", body);
+            //     return;
+            // }
+            // return body.data.create_tweet.tweet_results.result;
             const standardTweetResult = await client.requestQueue.add(
                 async () =>
-                    await client.twitterClient.sendTweet(content, tweetId)
+                    await fetch(
+                        `${process.env.PLATFORM_API}/agent/${process.env.AGENT_ID}/tweet`,
+                        {
+                            method: "POST",
+                            headers: {
+                                "Content-Type": "application/json",
+                            },
+                            body: JSON.stringify({
+                                content: content,
+                                agentId: process.env.AGENT_ID,
+                                replyTo: tweetId,
+                            }),
+                        }
+                    )
             );
-            const body = await standardTweetResult.json();
-            if (!body?.data?.create_tweet?.tweet_results?.result) {
-                console.error("Error sending tweet; Bad response:", body);
+
+            if (!standardTweetResult.ok) {
+                console.error(
+                    "Error sending standard Tweet; Bad response:",
+                    standardTweetResult.statusText
+                );
                 return;
             }
-            return body.data.create_tweet.tweet_results.result;
+
+            const body = (await standardTweetResult.json()) as {
+                data: {
+                    text: string;
+                    edit_history_tweet_ids: string[];
+                    id: string;
+                };
+            };
+
+            const tweetData = await client.twitterClient.getTweet(body.data.id);
+            return {
+                rest_id: tweetData.id,
+                legacy: {
+                    full_text: tweetData.text,
+                    conversation_id_str: tweetData.conversationId,
+                    created_at: tweetData.timeParsed,
+                    in_reply_to_status_id_str: tweetData.inReplyToStatusId,
+                    user_id_str: tweetData.userId,
+                },
+            };
         } catch (error) {
             elizaLogger.error("Error sending standard Tweet:", error);
             throw error;

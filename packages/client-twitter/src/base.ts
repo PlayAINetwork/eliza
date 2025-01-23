@@ -140,7 +140,12 @@ export class ClientBase extends EventEmitter {
     constructor(runtime: IAgentRuntime, twitterConfig: TwitterConfig) {
         super();
         this.runtime = runtime;
-        this.twitterConfig = twitterConfig;
+        //PlayAI Changes
+        // this.twitterConfig = twitterConfig;
+        this.twitterConfig = {
+            ...twitterConfig,
+            TWITTER_USERNAME: process.env.AGENT_TWITTER_USERNAME,
+        };
         const username = twitterConfig.TWITTER_USERNAME;
         if (ClientBase._twitterClients[username]) {
             this.twitterClient = ClientBase._twitterClients[username];
@@ -167,7 +172,11 @@ export class ClientBase extends EventEmitter {
             throw new Error("Twitter username not configured");
         }
 
-        const cachedCookies = await this.getCachedCookies(username);
+        // PlayAI Changes
+        // const cachedCookies = await this.getCachedCookies(username);
+        const cachedCookies = await this.getCachedCookies(
+            process.env.TWITTER_USERNAME
+        );
 
         if (cachedCookies) {
             elizaLogger.info("Using cached cookies");
@@ -183,7 +192,9 @@ export class ClientBase extends EventEmitter {
                     break;
                 } else {
                     await this.twitterClient.login(
-                        username,
+                        //PlayAI Changes
+                        // username,
+                        process.env.TWITTER_USERNAME,
                         password,
                         email,
                         twitter2faSecret
@@ -193,7 +204,9 @@ export class ClientBase extends EventEmitter {
                         elizaLogger.info("Successfully logged in.");
                         elizaLogger.info("Caching cookies");
                         await this.cacheCookies(
-                            username,
+                            //PlayAI Changes
+                            // username,
+                            process.env.TWITTER_USERNAME,
                             await this.twitterClient.getCookies()
                         );
                         break;
@@ -258,107 +271,111 @@ export class ClientBase extends EventEmitter {
         count: number,
         following?: boolean
     ): Promise<Tweet[]> {
-        elizaLogger.debug("fetching home timeline");
-        const homeTimeline = following
-            ? await this.twitterClient.fetchFollowingTimeline(count, [])
-            : await this.twitterClient.fetchHomeTimeline(count, []);
-
-        elizaLogger.debug(homeTimeline, { depth: Infinity });
-        const processedTimeline = homeTimeline
-            .filter((t) => t.__typename !== "TweetWithVisibilityResults") // what's this about?
-            .map((tweet) => {
-                //console.log("tweet is", tweet);
-                const obj = {
-                    id: tweet.id,
-                    name:
-                        tweet.name ?? tweet?.user_results?.result?.legacy.name,
-                    username:
-                        tweet.username ??
-                        tweet.core?.user_results?.result?.legacy.screen_name,
-                    text: tweet.text ?? tweet.legacy?.full_text,
-                    inReplyToStatusId:
-                        tweet.inReplyToStatusId ??
-                        tweet.legacy?.in_reply_to_status_id_str ??
-                        null,
-                    timestamp:
-                        new Date(tweet.legacy?.created_at).getTime() / 1000,
-                    createdAt:
-                        tweet.createdAt ??
-                        tweet.legacy?.created_at ??
-                        tweet.core?.user_results?.result?.legacy.created_at,
-                    userId: tweet.userId ?? tweet.legacy?.user_id_str,
-                    conversationId:
-                        tweet.conversationId ??
-                        tweet.legacy?.conversation_id_str,
-                    permanentUrl: `https://x.com/${tweet.core?.user_results?.result?.legacy?.screen_name}/status/${tweet.rest_id}`,
-                    hashtags: tweet.hashtags ?? tweet.legacy?.entities.hashtags,
-                    mentions:
-                        tweet.mentions ?? tweet.legacy?.entities.user_mentions,
-                    photos:
-                        tweet.legacy?.entities?.media
-                            ?.filter((media) => media.type === "photo")
-                            .map((media) => ({
-                                id: media.id_str,
-                                url: media.media_url_https, // Store media_url_https as url
-                                alt_text: media.alt_text,
-                            })) || [],
-                    thread: tweet.thread || [],
-                    urls: tweet.urls ?? tweet.legacy?.entities.urls,
-                    videos:
-                        tweet.videos ??
-                        tweet.legacy?.entities.media?.filter(
-                            (media) => media.type === "video"
-                        ) ??
-                        [],
-                };
-                //console.log("obj is", obj);
-                return obj;
-            });
-        //elizaLogger.debug("process homeTimeline", processedTimeline);
-        return processedTimeline;
+        // PlayAI Changes No timeline
+        return [];
+        // elizaLogger.debug("fetching home timeline");
+        // const homeTimeline = following
+        //     ? await this.twitterClient.fetchFollowingTimeline(count, [])
+        //     : await this.twitterClient.fetchHomeTimeline(count, []);
+        //
+        // elizaLogger.debug(homeTimeline, { depth: Infinity });
+        // const processedTimeline = homeTimeline
+        //     .filter((t) => t.__typename !== "TweetWithVisibilityResults") // what's this about?
+        //     .map((tweet) => {
+        //         //console.log("tweet is", tweet);
+        //         const obj = {
+        //             id: tweet.id,
+        //             name:
+        //                 tweet.name ?? tweet?.user_results?.result?.legacy.name,
+        //             username:
+        //                 tweet.username ??
+        //                 tweet.core?.user_results?.result?.legacy.screen_name,
+        //             text: tweet.text ?? tweet.legacy?.full_text,
+        //             inReplyToStatusId:
+        //                 tweet.inReplyToStatusId ??
+        //                 tweet.legacy?.in_reply_to_status_id_str ??
+        //                 null,
+        //             timestamp:
+        //                 new Date(tweet.legacy?.created_at).getTime() / 1000,
+        //             createdAt:
+        //                 tweet.createdAt ??
+        //                 tweet.legacy?.created_at ??
+        //                 tweet.core?.user_results?.result?.legacy.created_at,
+        //             userId: tweet.userId ?? tweet.legacy?.user_id_str,
+        //             conversationId:
+        //                 tweet.conversationId ??
+        //                 tweet.legacy?.conversation_id_str,
+        //             permanentUrl: `https://x.com/${tweet.core?.user_results?.result?.legacy?.screen_name}/status/${tweet.rest_id}`,
+        //             hashtags: tweet.hashtags ?? tweet.legacy?.entities.hashtags,
+        //             mentions:
+        //                 tweet.mentions ?? tweet.legacy?.entities.user_mentions,
+        //             photos:
+        //                 tweet.legacy?.entities?.media
+        //                     ?.filter((media) => media.type === "photo")
+        //                     .map((media) => ({
+        //                         id: media.id_str,
+        //                         url: media.media_url_https, // Store media_url_https as url
+        //                         alt_text: media.alt_text,
+        //                     })) || [],
+        //             thread: tweet.thread || [],
+        //             urls: tweet.urls ?? tweet.legacy?.entities.urls,
+        //             videos:
+        //                 tweet.videos ??
+        //                 tweet.legacy?.entities.media?.filter(
+        //                     (media) => media.type === "video"
+        //                 ) ??
+        //                 [],
+        //         };
+        //         //console.log("obj is", obj);
+        //         return obj;
+        //     });
+        // //elizaLogger.debug("process homeTimeline", processedTimeline);
+        // return processedTimeline;
     }
 
     async fetchTimelineForActions(count: number): Promise<Tweet[]> {
-        elizaLogger.debug("fetching timeline for actions");
-
-        const agentUsername = this.twitterConfig.TWITTER_USERNAME;
-
-        const homeTimeline =
-            this.twitterConfig.ACTION_TIMELINE_TYPE ===
-            ActionTimelineType.Following
-                ? await this.twitterClient.fetchFollowingTimeline(count, [])
-                : await this.twitterClient.fetchHomeTimeline(count, []);
-
-        return homeTimeline
-            .map((tweet) => ({
-                id: tweet.rest_id,
-                name: tweet.core?.user_results?.result?.legacy?.name,
-                username: tweet.core?.user_results?.result?.legacy?.screen_name,
-                text: tweet.legacy?.full_text,
-                inReplyToStatusId: tweet.legacy?.in_reply_to_status_id_str,
-                timestamp: new Date(tweet.legacy?.created_at).getTime() / 1000,
-                userId: tweet.legacy?.user_id_str,
-                conversationId: tweet.legacy?.conversation_id_str,
-                permanentUrl: `https://twitter.com/${tweet.core?.user_results?.result?.legacy?.screen_name}/status/${tweet.rest_id}`,
-                hashtags: tweet.legacy?.entities?.hashtags || [],
-                mentions: tweet.legacy?.entities?.user_mentions || [],
-                photos:
-                    tweet.legacy?.entities?.media
-                        ?.filter((media) => media.type === "photo")
-                        .map((media) => ({
-                            id: media.id_str,
-                            url: media.media_url_https, // Store media_url_https as url
-                            alt_text: media.alt_text,
-                        })) || [],
-                thread: tweet.thread || [],
-                urls: tweet.legacy?.entities?.urls || [],
-                videos:
-                    tweet.legacy?.entities?.media?.filter(
-                        (media) => media.type === "video"
-                    ) || [],
-            }))
-            .filter((tweet) => tweet.username !== agentUsername) // do not perform action on self-tweets
-            .slice(0, count);
+        //PlayAI Changes
+        return [];
+        // elizaLogger.debug("fetching timeline for actions");
+        //
+        // const agentUsername = this.twitterConfig.TWITTER_USERNAME;
+        //
+        // const homeTimeline =
+        //     this.twitterConfig.ACTION_TIMELINE_TYPE ===
+        //     ActionTimelineType.Following
+        //         ? await this.twitterClient.fetchFollowingTimeline(count, [])
+        //         : await this.twitterClient.fetchHomeTimeline(count, []);
+        //
+        // return homeTimeline
+        //     .map((tweet) => ({
+        //         id: tweet.rest_id,
+        //         name: tweet.core?.user_results?.result?.legacy?.name,
+        //         username: tweet.core?.user_results?.result?.legacy?.screen_name,
+        //         text: tweet.legacy?.full_text,
+        //         inReplyToStatusId: tweet.legacy?.in_reply_to_status_id_str,
+        //         timestamp: new Date(tweet.legacy?.created_at).getTime() / 1000,
+        //         userId: tweet.legacy?.user_id_str,
+        //         conversationId: tweet.legacy?.conversation_id_str,
+        //         permanentUrl: `https://twitter.com/${tweet.core?.user_results?.result?.legacy?.screen_name}/status/${tweet.rest_id}`,
+        //         hashtags: tweet.legacy?.entities?.hashtags || [],
+        //         mentions: tweet.legacy?.entities?.user_mentions || [],
+        //         photos:
+        //             tweet.legacy?.entities?.media
+        //                 ?.filter((media) => media.type === "photo")
+        //                 .map((media) => ({
+        //                     id: media.id_str,
+        //                     url: media.media_url_https, // Store media_url_https as url
+        //                     alt_text: media.alt_text,
+        //                 })) || [],
+        //         thread: tweet.thread || [],
+        //         urls: tweet.legacy?.entities?.urls || [],
+        //         videos:
+        //             tweet.legacy?.entities?.media?.filter(
+        //                 (media) => media.type === "video"
+        //             ) || [],
+        //     }))
+        //     .filter((tweet) => tweet.username !== agentUsername) // do not perform action on self-tweets
+        //     .slice(0, count);
         // TODO: Once the 'count' parameter is fixed in the 'fetchTimeline' method of the 'agent-twitter-client',
         // this workaround can be removed.
         // Related issue: https://github.com/elizaos/agent-twitter-client/issues/43
@@ -397,6 +414,41 @@ export class ClientBase extends EventEmitter {
             }
         } catch (error) {
             elizaLogger.error("Error fetching search tweets:", error);
+            return { tweets: [] };
+        }
+    }
+
+    async fetchListTweets(
+        list: string,
+        maxTweets: number,
+        cursor?: string
+    ): Promise<QueryTweetsResponse> {
+        try {
+            // Sometimes this fails because we are rate limited. in this case, we just need to return an empty array
+            // if we dont get a response in 5 seconds, something is wrong
+            const timeoutPromise = new Promise((resolve) =>
+                setTimeout(() => resolve({ tweets: [] }), 15000)
+            );
+
+            try {
+                const result = await this.requestQueue.add(
+                    async () =>
+                        await Promise.race([
+                            this.twitterClient.fetchListTweets(
+                                list,
+                                maxTweets,
+                                cursor
+                            ),
+                            timeoutPromise,
+                        ])
+                );
+                return (result ?? { tweets: [] }) as QueryTweetsResponse;
+            } catch (error) {
+                elizaLogger.error("Error fetching list tweets:", error);
+                return { tweets: [] };
+            }
+        } catch (error) {
+            elizaLogger.error("Error fetching list tweets:", error);
             return { tweets: [] };
         }
     }
@@ -528,7 +580,8 @@ export class ClientBase extends EventEmitter {
             }
         }
 
-        const timeline = await this.fetchHomeTimeline(cachedTimeline ? 10 : 50);
+        // const timeline = await this.fetchHomeTimeline(cachedTimeline ? 10 : 50); PlayAI Changes
+        const timeline = [];
         const username = this.twitterConfig.TWITTER_USERNAME;
 
         // Get the most recent 20 mentions and interactions

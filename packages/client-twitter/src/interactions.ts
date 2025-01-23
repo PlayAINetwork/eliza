@@ -15,7 +15,7 @@ import {
     elizaLogger,
     getEmbeddingZeroVector,
     IImageDescriptionService,
-    ServiceType
+    ServiceType,
 } from "@elizaos/core";
 import { ClientBase } from "./base";
 import { buildConversationThread, sendTweet, wait } from "./utils.ts";
@@ -97,6 +97,7 @@ export class TwitterInteractionClient {
     client: ClientBase;
     runtime: IAgentRuntime;
     private isDryRun: boolean;
+
     constructor(client: ClientBase, runtime: IAgentRuntime) {
         this.client = client;
         this.runtime = runtime;
@@ -218,6 +219,93 @@ export class TwitterInteractionClient {
                         ...selectedTweets,
                     ];
                 }
+            } else {
+                elizaLogger.log(
+                    "No target users configured, processing only mentions"
+                );
+            }
+
+            // PlayAI Changes
+            const TWITTER_TARGET_LISTS =
+                process.env.TWITTER_TARGET_LISTS?.split(",");
+            if (TWITTER_TARGET_LISTS.length) {
+                elizaLogger.log(
+                    "Processing target lists:",
+                    TWITTER_TARGET_LISTS
+                );
+
+                // Create a map to store tweets by user
+                const tweetsByList = new Map<string, Tweet[]>();
+
+                // Fetch tweets from all target users
+                for (const listId of TWITTER_TARGET_LISTS) {
+                    try {
+                        const listTweets = (
+                            await this.client.twitterClient.fetchListTweets(
+                                listId,
+                                3
+                            )
+                        ).tweets;
+
+                        // Filter for unprocessed, non-reply, recent tweets
+                        const validTweets = listTweets.filter((tweet) => {
+                            const isUnprocessed =
+                                !this.client.lastCheckedTweetId ||
+                                parseInt(tweet.id) >
+                                    this.client.lastCheckedTweetId;
+                            const isRecent =
+                                Date.now() - tweet.timestamp * 1000 <
+                                2 * 60 * 60 * 1000;
+
+                            elizaLogger.log(`Tweet ${tweet.id} checks:`, {
+                                isUnprocessed,
+                                isRecent,
+                                isReply: tweet.isReply,
+                                isRetweet: tweet.isRetweet,
+                            });
+
+                            return (
+                                isUnprocessed &&
+                                !tweet.isReply &&
+                                !tweet.isRetweet &&
+                                isRecent
+                            );
+                        });
+
+                        if (validTweets.length > 0) {
+                            tweetsByList.set(listId, validTweets);
+                            elizaLogger.log(
+                                `Found ${validTweets.length} valid tweets from list:${listId}`
+                            );
+                        }
+                    } catch (error) {
+                        elizaLogger.error(
+                            `Error fetching tweets for list:${listId}:`,
+                            error
+                        );
+                        continue;
+                    }
+                }
+
+                // Select one tweet from each user that has tweets
+                const selectedTweets: Tweet[] = [];
+                for (const [listId, tweets] of tweetsByList) {
+                    if (tweets.length > 0) {
+                        // Randomly select one tweet from this user
+                        const randomTweet =
+                            tweets[Math.floor(Math.random() * tweets.length)];
+                        selectedTweets.push(randomTweet);
+                        elizaLogger.log(
+                            `Selected tweet from list:${listId}: ${randomTweet.text?.substring(0, 100)}`
+                        );
+                    }
+                }
+
+                // Add selected tweets to candidates
+                uniqueTweetCandidates = [
+                    ...uniqueTweetCandidates,
+                    ...selectedTweets,
+                ];
             } else {
                 elizaLogger.log(
                     "No target users configured, processing only mentions"
@@ -349,8 +437,8 @@ export class TwitterInteractionClient {
         elizaLogger.debug("formattedConversation: ", formattedConversation);
 
         const imageDescriptionsArray = [];
-        try{
-            elizaLogger.debug('Getting images');
+        try {
+            elizaLogger.debug("Getting images");
             for (const photo of tweet.photos) {
                 elizaLogger.debug(photo.url);
                 const description = await this.runtime
@@ -361,21 +449,24 @@ export class TwitterInteractionClient {
                 imageDescriptionsArray.push(description);
             }
         } catch (error) {
-    // Handle the error
-    elizaLogger.error("Error Occured during describing image: ", error);
-}
-
-
-
+            // Handle the error
+            elizaLogger.error("Error Occured during describing image: ", error);
+        }
 
         let state = await this.runtime.composeState(message, {
             twitterClient: this.client.twitterClient,
             twitterUserName: this.client.twitterConfig.TWITTER_USERNAME,
             currentPost,
             formattedConversation,
-            imageDescriptions: imageDescriptionsArray.length > 0
-            ? `\nImages in Tweet:\n${imageDescriptionsArray.map((desc, i) =>
-              `Image ${i + 1}: Title: ${desc.title}\nDescription: ${desc.description}`).join("\n\n")}`:""
+            imageDescriptions:
+                imageDescriptionsArray.length > 0
+                    ? `\nImages in Tweet:\n${imageDescriptionsArray
+                          .map(
+                              (desc, i) =>
+                                  `Image ${i + 1}: Title: ${desc.title}\nDescription: ${desc.description}`
+                          )
+                          .join("\n\n")}`
+                    : "",
         });
 
         // check if the tweet exists, save if it doesn't

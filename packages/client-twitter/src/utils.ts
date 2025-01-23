@@ -213,26 +213,74 @@ export async function sendTweet(
             );
         }
 
-        const cleanChunk = deduplicateMentions(chunk.trim())
+        const cleanChunk = deduplicateMentions(chunk.trim());
 
-        const result = await client.requestQueue.add(async () =>
-            isLongTweet
-                ? client.twitterClient.sendLongTweet(
-                      cleanChunk,
-                      previousTweetId,
-                      mediaData
-                  )
-                : client.twitterClient.sendTweet(
-                      cleanChunk,
-                      previousTweetId,
-                      mediaData
-                  )
+        // PlayAI Changes
+        // const result = await client.requestQueue.add(async () =>
+        //     isLongTweet
+        //         ? client.twitterClient.sendLongTweet(
+        //               cleanChunk,
+        //               previousTweetId,
+        //               mediaData
+        //           )
+        //         : client.twitterClient.sendTweet(
+        //               cleanChunk,
+        //               previousTweetId,
+        //               mediaData
+        //           )
+        // );
+        //
+        // const body = await result.json();
+        // const tweetResult = isLongTweet
+        //     ? body?.data?.notetweet_create?.tweet_results?.result
+        //     : body?.data?.create_tweet?.tweet_results?.result;
+
+        const result = await client.requestQueue.add(
+            async () =>
+                await fetch(
+                    `${process.env.PLATFORM_API}/agent/${process.env.AGENT_ID}/tweet`,
+                    {
+                        method: "POST",
+                        headers: {
+                            "Content-Type": "application/json",
+                        },
+                        body: JSON.stringify({
+                            content: cleanChunk,
+                            agentId: process.env.AGENT_ID,
+                            replyTo: previousTweetId,
+                        }),
+                    }
+                )
         );
 
-        const body = await result.json();
-        const tweetResult = isLongTweet
-            ? body?.data?.notetweet_create?.tweet_results?.result
-            : body?.data?.create_tweet?.tweet_results?.result;
+        if (!result.ok) {
+            console.error(
+                "Error sending standard Tweet; Bad response:",
+                result.statusText
+            );
+            return;
+        }
+
+        const body = (await result.json()) as {
+            data: {
+                text: string;
+                edit_history_tweet_ids: string[];
+                id: string;
+            };
+        };
+
+        const tweetData = await client.twitterClient.getTweet(body.data.id);
+
+        const tweetResult = {
+            rest_id: tweetData.id,
+            legacy: {
+                full_text: tweetData.text,
+                conversation_id_str: tweetData.conversationId,
+                created_at: tweetData.timeParsed,
+                in_reply_to_status_id_str: tweetData.inReplyToStatusId,
+                user_id_str: tweetData.userId,
+            },
+        };
 
         // if we have a response
         if (tweetResult) {
@@ -402,29 +450,29 @@ function splitSentencesAndWords(text: string, maxLength: number): string[] {
 
 function deduplicateMentions(paragraph: string) {
     // Regex to match mentions at the beginning of the string
-  const mentionRegex = /^@(\w+)(?:\s+@(\w+))*(\s+|$)/;
+    const mentionRegex = /^@(\w+)(?:\s+@(\w+))*(\s+|$)/;
 
-  // Find all matches
-  const matches = paragraph.match(mentionRegex);
+    // Find all matches
+    const matches = paragraph.match(mentionRegex);
 
-  if (!matches) {
-    return paragraph; // If no matches, return the original string
-  }
+    if (!matches) {
+        return paragraph; // If no matches, return the original string
+    }
 
-  // Extract mentions from the match groups
-  let mentions = matches.slice(0, 1)[0].trim().split(' ')
+    // Extract mentions from the match groups
+    let mentions = matches.slice(0, 1)[0].trim().split(" ");
 
-  // Deduplicate mentions
-  mentions = [...new Set(mentions)];
+    // Deduplicate mentions
+    mentions = [...new Set(mentions)];
 
-  // Reconstruct the string with deduplicated mentions
-  const uniqueMentionsString = mentions.join(' ');
+    // Reconstruct the string with deduplicated mentions
+    const uniqueMentionsString = mentions.join(" ");
 
-  // Find where the mentions end in the original string
-  const endOfMentions = paragraph.indexOf(matches[0]) + matches[0].length;
+    // Find where the mentions end in the original string
+    const endOfMentions = paragraph.indexOf(matches[0]) + matches[0].length;
 
-  // Construct the result by combining unique mentions with the rest of the string
-  return uniqueMentionsString + ' ' + paragraph.slice(endOfMentions);
+    // Construct the result by combining unique mentions with the rest of the string
+    return uniqueMentionsString + " " + paragraph.slice(endOfMentions);
 }
 
 function restoreUrls(
