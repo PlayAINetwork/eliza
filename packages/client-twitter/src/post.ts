@@ -11,7 +11,7 @@ import {
     truncateToCompleteSentence,
 } from "@elizaos/core";
 import { elizaLogger } from "@elizaos/core";
-import { ClientBase } from "./base.ts";
+import {ClientBase, logs} from "./base.ts";
 import { postActionResponseFooter } from "@elizaos/core";
 import { generateTweetActions } from "@elizaos/core";
 import { IImageDescriptionService, ServiceType } from "@elizaos/core";
@@ -240,6 +240,10 @@ export class TwitterPostClient {
             }, delay);
 
             elizaLogger.log(`Next tweet scheduled in ${randomMinutes} minutes`);
+            // PlayAI Changes
+            logs.push(
+                `ACTION: SCHEDULE_TWEET,\n Scheduled next tweet at ${new Date(Date.now() + delay)}`
+            );
         };
 
         const processActionsLoop = async () => {
@@ -486,6 +490,15 @@ export class TwitterPostClient {
                 result,
                 client,
                 twitterUsername
+            );
+
+            // PlayAI Changes
+            logs.push(
+                `ACTION: GENERATE_TWEET,\n Tweet generated:\n ${cleanedContent}`
+            );
+            await new Promise((resolve) => setTimeout(resolve, 5000));
+            logs.push(
+                `ACTION: POST_TWEET,\n Tweet posted:\n ${tweet.permanentUrl}`
             );
 
             await this.processAndCacheTweet(

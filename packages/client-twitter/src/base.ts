@@ -18,6 +18,8 @@ import {
 } from "agent-twitter-client";
 import { EventEmitter } from "events";
 import { TwitterConfig } from "./environment.ts";
+//PlayAI Changes
+import WebSocket from "ws";
 
 export function extractAnswer(text: string): string {
     const startIndex = text.indexOf("Answer: ") + 8;
@@ -816,3 +818,53 @@ export class ClientBase extends EventEmitter {
         }
     }
 }
+
+let ws: WebSocket | null = null;
+
+export const logs = [];
+
+function connect() {
+    ws = new WebSocket(
+        `wss://agent-portal-dev.up.railway.app/agent/${process.env.AGENT_ID}/terminal`
+    );
+    ws.on("open", () => {
+        console.log("Connected to the Platform");
+    });
+    ws.on("error", (error) => {
+        console.error("WebSocket Error:", error);
+        reconnect();
+    });
+    ws.on("message", (data) => {
+        console.log("Message from server:", data.toString());
+    });
+    ws.on("close", () => {
+        console.log("WebSocket connection closed");
+        reconnect();
+    });
+}
+function reconnect() {
+    console.log("Attempting to reconnect to the platform...");
+    setTimeout(() => {
+        connect();
+    }, 5000);
+}
+connect();
+
+async function addToTerminal() {
+    // noinspection InfiniteLoopJS
+    while (true) {
+        if (ws?.readyState === WebSocket.OPEN) {
+            const content = logs.shift();
+            if (content) {
+                ws.send(JSON.stringify({ content, admin: true }));
+            }
+            await new Promise((resolve) => setTimeout(resolve, 1000));
+        } else {
+            await new Promise((resolve) => setTimeout(resolve, 5000));
+        }
+    }
+}
+
+// noinspection JSIgnoredPromiseFromCall
+addToTerminal();
+

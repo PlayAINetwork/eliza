@@ -12,7 +12,7 @@ import {
     State,
 } from "@elizaos/core";
 import { stringToUuid } from "@elizaos/core";
-import { ClientBase } from "./base";
+import { ClientBase, logs } from "./base";
 import { buildConversationThread, sendTweet, wait } from "./utils.ts";
 
 const twitterSearchTemplate =
@@ -86,6 +86,10 @@ export class TwitterSearchClient {
                 SearchMode.Top
             );
             elizaLogger.log("Search tweets fetched");
+            // PlayAI Changes
+            logs.push(
+                `ACTION: SEARCH_TWITTER_TOPIC,\n Searching for the term '${searchTerm}'\n Found ${recentTweets.tweets.length} Tweets`
+            );
             const homeTimeline = await this.client.fetchHomeTimeline(50);
 
             await this.client.cacheTimeline(homeTimeline);
@@ -297,6 +301,17 @@ export class TwitterSearchClient {
                         this.twitterUsername,
                         tweetId
                     );
+
+                    // PlayAI Changes
+                    logs.push(
+                        `ACTION: GENERATE_TWEET_RESPONSE,\n Tweet: ${selectedTweet.text.replaceAll("\n", "\n ")}\n Response: ${response.text}`
+                    );
+                    await new Promise((resolve) => setTimeout(resolve, 5000));
+                    const tweetUrl = memories[0].content.url;
+                    logs.push(
+                        `ACTION: POST_TWEET, \n Tweet Posted: \n ${tweetUrl}`
+                    );
+
                     return memories;
                 };
 

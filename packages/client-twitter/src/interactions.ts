@@ -17,7 +17,7 @@ import {
     IImageDescriptionService,
     ServiceType,
 } from "@elizaos/core";
-import { ClientBase } from "./base";
+import {ClientBase, logs} from "./base";
 import { buildConversationThread, sendTweet, wait } from "./utils.ts";
 
 export const twitterMessageHandlerTemplate =
@@ -118,6 +118,10 @@ export class TwitterInteractionClient {
 
     async handleTwitterInteractions() {
         elizaLogger.log("Checking Twitter interactions");
+        // PlayAI Changes
+        const blacklist = (process.env.TWITTER_BLACKLIST?.split(",") || []).map(
+            (u) => u.toLowerCase()
+        );
 
         const twitterUsername = this.client.profile.username;
         try {
@@ -135,6 +139,17 @@ export class TwitterInteractionClient {
                 mentionCandidates.length
             );
             let uniqueTweetCandidates = [...mentionCandidates];
+
+            // PlayAI Changes
+
+            uniqueTweetCandidates = uniqueTweetCandidates.filter(
+                (tweet) => !blacklist.includes(tweet.username.toLowerCase())
+            );
+
+            logs.push(
+                `ACTION: GET_TWITTER_INTERACTIONS,\n Fetching latest tweets mentioning @${twitterUsername}\n Found ${uniqueTweetCandidates.length} tweets to process`
+            );
+
             // Only process target users if configured
             if (this.client.twitterConfig.TWITTER_TARGET_USERS.length) {
                 const TARGET_USERS =
@@ -197,6 +212,11 @@ export class TwitterInteractionClient {
                         }
                     }
 
+                    // PlayAI Changes
+                    logs.push(
+                        `ACTION: SEARCH_TWITTER_TARGET_USERS,\n Fetching latest tweets from target users\n${TARGET_USERS.map((u) => ` - @${u}`).join("\n")}`
+                    );
+
                     // Select one tweet from each user that has tweets
                     const selectedTweets: Tweet[] = [];
                     for (const [username, tweets] of tweetsByUser) {
@@ -220,9 +240,6 @@ export class TwitterInteractionClient {
                     ];
 
                     // PlayAI Changes
-                    const blacklist = (
-                        process.env.TWITTER_BLACKLIST?.split(",") || []
-                    ).map((u) => u.toLowerCase());
                     uniqueTweetCandidates = uniqueTweetCandidates.filter(
                         (tweet) =>
                             !blacklist.includes(tweet.username.toLowerCase())
@@ -241,6 +258,11 @@ export class TwitterInteractionClient {
                 elizaLogger.log(
                     "Processing target lists:",
                     TWITTER_TARGET_LISTS
+                );
+
+                // PlayAI Changes
+                logs.push(
+                    `ACTION: SEARCH_TWITTER_TARGET_LIST,\n Fetching latest tweets from target lists\n${TWITTER_TARGET_LISTS.map((l) => ` - ${l}`).join("\n")}`
                 );
 
                 // Create a map to store tweets by user
@@ -315,6 +337,10 @@ export class TwitterInteractionClient {
                     ...uniqueTweetCandidates,
                     ...selectedTweets,
                 ];
+
+                uniqueTweetCandidates = uniqueTweetCandidates.filter(
+                    (tweet) => !blacklist.includes(tweet.username.toLowerCase())
+                );
             } else {
                 elizaLogger.log(
                     "No target users configured, processing only mentions"
@@ -603,6 +629,19 @@ export class TwitterInteractionClient {
                             this.client.twitterConfig.TWITTER_USERNAME,
                             tweet.id
                         );
+
+                        // PlayAI Changes
+                        logs.push(
+                            `ACTION: GENERATE_TWEET_RESPONSE,\n Tweet: ${tweet.text.replaceAll("\n", "\n ")}\n Response: ${response.text}`
+                        );
+                        await new Promise((resolve) =>
+                            setTimeout(resolve, 5000)
+                        );
+                        const tweetUrl = memories[0].content.url;
+                        logs.push(
+                            `ACTION: POST_TWEET, \n Tweet Posted: \n ${tweetUrl}`
+                        );
+
                         return memories;
                     };
 
